@@ -1,0 +1,36 @@
+# Copy the brief from the Whop campaign page into a file like this, one per campaign.
+# Run:  clipper run campaigns/example.toml
+
+name = "Example Podcast Clips"
+whop_url = "https://whop.com/..."          # campaign page, for your checklist
+creator = "Example Podcast (@examplepod)"
+rate_per_1k_views = 1.50                    # USD, for your notes
+platforms = ["tiktok", "youtube_shorts", "instagram_reels"]
+
+# Long-form videos the campaign lets you clip (YouTube links, Drive links the campaign shares, or local files)
+sources = [
+  # "https://www.youtube.com/watch?v=...",
+  # "~/Downloads/episode-42.mp4",
+]
+
+min_seconds = 20
+max_seconds = 60
+clips_per_source = 5
+
+rules = [
+  "Only use content from the official episodes listed in the campaign",
+  "Captions must be burned into the video",
+  "Clip must be in English",
+]
+banned = [
+  "Reuploading full episodes or segments longer than 90 seconds",
+  "Misleading or clickbait titles that misrepresent what was said",
+]
+required_hashtags = ["#examplepod"]
+required_mentions = ["@examplepod"]
+caption_cta = "Full episode on YouTube"
+language = "en"
+
+layout = "blur"        # "blur" = full frame over blurred background; "crop" = centre crop to fill 9:16
+burn_captions = true
+show_hook = true
