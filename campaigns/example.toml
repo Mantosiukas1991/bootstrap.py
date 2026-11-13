@@ -1,36 +1,40 @@
-# Copy the brief from the Whop campaign page into a file like this, one per campaign.
-# Run:  clipper run campaigns/example.toml
+# Usually you don't write this by hand: `clipper go <brief-link>` creates it from the campaign brief.
+# Edit it when the brief extraction got something wrong, then run:  clipper run campaigns/example.toml
 
 name = "Example Podcast Clips"
-whop_url = "https://whop.com/..."          # campaign page, for your checklist
+brief_url = ""
 creator = "Example Podcast (@examplepod)"
-rate_per_1k_views = 1.50                    # USD, for your notes
-platforms = ["tiktok", "youtube_shorts", "instagram_reels"]
+platforms = ["tiktok", "instagram_reels", "youtube_shorts"]
 
-# Long-form videos the campaign lets you clip (YouTube links, Drive links the campaign shares, or local files)
 sources = [
-  # "https://www.youtube.com/watch?v=...",
+  # "https://www.youtube.com/watch?v=...",   # YouTube, Drive, Dropbox, Frame.io, MediaSilo, or a local file
   # "~/Downloads/episode-42.mp4",
 ]
+asset_links = []      # logo / watermark links
+context_links = []    # blog posts etc. used for research
 
 min_seconds = 20
 max_seconds = 60
 clips_per_source = 5
 
 rules = [
-  "Only use content from the official episodes listed in the campaign",
-  "Captions must be burned into the video",
-  "Clip must be in English",
+  "Only use footage from the official episodes",
+  "English only",
 ]
 banned = [
-  "Reuploading full episodes or segments longer than 90 seconds",
-  "Misleading or clickbait titles that misrepresent what was said",
+  "Misleading or clickbait titles",
+  "Added music",
 ]
-required_hashtags = ["#examplepod"]
-required_mentions = ["@examplepod"]
-caption_cta = "Full episode on YouTube"
+required_caption_lines = ["@examplepod"]
+disclosure_tag = "#Ad"          # placed first, on its own line
+max_extra_hashtags = 3
+on_screen_text_examples = []
 language = "en"
 
-layout = "blur"        # "blur" = full frame over blurred background; "crop" = centre crop to fill 9:16
-burn_captions = true
+layout = "blur"                 # "blur" = full frame over blurred background; "crop" = fill the screen
+subtitles = "auto"              # auto = only clips with speech
 show_hook = true
+hook_seconds = 0                # 0 = on-screen text stays the whole clip
+watermark = ""                  # path to logo PNG (filled automatically from asset_links if empty)
+watermark_required = false
+watermark_position = "top-right"

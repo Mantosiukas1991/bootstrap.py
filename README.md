@@ -1,75 +1,99 @@
-# Whop clipper
+# Clipper
 
-An agent that turns long-form videos into short, campaign-compliant clips for
-[Whop Content Rewards](https://whop.com) clipping campaigns.
+Paste a clipping campaign's brief link. The agent reads the brief, downloads the official footage and logo,
+researches which hooks are getting reach right now, and renders vertical clips that follow every rule in the brief.
 
 ```
-campaign brief (TOML) + source videos
-  -> download (yt-dlp)
-  -> word-level transcript (faster-whisper, local)
-  -> Claude picks the best moments that follow the campaign's rules
-  -> 1080x1920 clips with burned-in word-by-word captions and an opening hook (ffmpeg)
-  -> post captions/hashtags + SUBMIT.md checklist
+clipper go "https://docs.google.com/document/d/.../mobilebasic"
 ```
 
-Posting the clips and submitting post links on Whop stays manual: you review each clip before it goes out
-under your account.
+```
+brief link (Google Doc, Notion, any page)
+  -> Claude extracts rules, caption requirements, footage + logo links   campaigns/<name>.toml
+  -> downloads footage and assets (Drive, YouTube, Frame.io, MediaSilo, Dropbox...)
+  -> Claude researches current hooks with web search                      out/<name>/hook_playbook.md
+  -> per video: transcript (Whisper) + keyframes (scene changes)
+  -> Claude plans clips: spans, on-screen text, caption, angle            out/<name>/<video>/plan.json
+  -> ffmpeg renders 1080x1920 with on-screen text, subtitles, logo        out/<name>/<video>/*.mp4
+  -> caption files in the brief's required format + SUBMIT.md checklist
+```
+
+Posting and submitting stay with you: watch every clip, post from your own account, submit the link.
 
 ## Setup
 
-Needs Python 3.11+ and `ffmpeg` on your PATH.
+Needs Python 3.11+ and `ffmpeg`.
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
+playwright install chromium        # headless browser for Frame.io / MediaSilo / Notion pages
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-The first run downloads the Whisper model (`small` by default, about 500 MB).
+The first run also downloads the Whisper speech model (`small`, about 500 MB).
 
 ## Use
 
-1. Copy `campaigns/example.toml` to `campaigns/<campaign>.toml` and fill it in from the campaign page on Whop:
-   clip length, rules, banned content, required hashtags/mentions, and the source video links.
-2. Run it:
-
-   ```bash
-   clipper run campaigns/<campaign>.toml
-   ```
-
-3. Open `out/<campaign>/SUBMIT.md`. For each clip there's the video, a `.txt` with the title/caption/hashtags,
-   Claude's reason for picking it and its rule check, plus a checkbox per platform.
-
-### Editing Claude's picks
-
 ```bash
-clipper run campaigns/<campaign>.toml --plan-only   # stop after selection
-# edit out/<campaign>/<source-id>/plan.json (change start/end, titles, drop clips)
-clipper render campaigns/<campaign>.toml            # render from the edited plans
+clipper go <brief-link>                    # everything in one go
 ```
 
-`plan.json` is reused on later runs; pass `--repick` to ask Claude again.
+Or step by step:
+
+```bash
+clipper brief <brief-link>                 # creates campaigns/<name>.toml; check rules and caption lines
+clipper run campaigns/<name>.toml --plan-only
+# edit out/<name>/<video>/plan.json if you want (spans, on-screen text, captions, drop clips)
+clipper render campaigns/<name>.toml
+```
+
+Open `out/<name>/SUBMIT.md`: clips sorted by score, each with its on-screen text, angle, why it stands out, the rule
+check, and a `.txt` with the post caption.
+
+### What each part does
+
+**Brief reading.** Google Docs are read directly; other pages are opened in a headless browser. Claude pulls out
+footage links, logo links, background links, every rule and ban, the exact required caption lines (mentions, song
+credits), the disclosure tag, the hashtag limit, example on-screen text, and whether a watermark is required.
+
+**Downloads.** Each link is tried with Google Drive, then yt-dlp, then a headless browser that clicks the page's
+Download buttons. Zips are unpacked. If a page needs a login or isn't recognised, `--interactive` opens a browser
+window: download the files yourself and the agent picks them up. You can also put local file paths in `sources`.
+
+**Hook research.** Claude runs web searches for what's working on the target platforms now, how the launch and
+niche are being talked about, and what the saturated angle will be (what most clippers will post), then writes a
+playbook of hook patterns with ready-to-use lines for this campaign. Everything is filtered through the campaign
+rules (for example, no exaggerated hooks or false claims). It's cached; `--refresh-research` redoes it.
+Web search finds articles, guides and reports. It can't read view counts on TikTok directly, so treat the
+playbook as informed guidance, and the playbook says where evidence is thin.
+
+**Clip planning.** Claude sees the brief, the playbook, keyframes from the footage and the transcript, so
+music-only trailers work as well as talking videos. A clip can join up to 4 spans (strongest shots first) or be one
+continuous moment. Each clip gets a different angle so they don't look like spam.
+
+**Rendering.** 1080x1920, blurred background (`layout = "blur"`) or fill (`"crop"`), on-screen text, word-by-word
+subtitles only when there's dialogue (`subtitles = "auto"`), and the campaign logo (white variant preferred).
+Original audio only: nothing is added.
+
+**Captions.** Written as: caption text, required lines, the disclosure tag on its own line, then up to the allowed
+number of hashtags.
 
 ### Options
 
-| Flag | Default | |
-|---|---|---|
-| `--source URL` | | Add a source on the command line (repeatable) |
-| `--whisper-model` | `small` | `tiny`/`base` are faster, `medium`/`large-v3` more accurate |
-| `--out` / `--work` | `out` / `work` | Output and download/transcript cache directories |
+| Flag | |
+|---|---|
+| `--interactive` | Open a browser window when a download link can't be handled automatically |
+| `--plan-only` / `--repick` | Stop after planning / plan again |
+| `--no-research` / `--refresh-research` | Skip / redo hook research |
+| `--source PATH_OR_URL` | Add footage without editing the campaign file |
+| `--whisper-model` | `tiny`/`base` faster, `medium`/`large-v3` more accurate (default `small`) |
 
-Campaign file settings: `layout = "blur"` puts the full frame over a blurred background, `"crop"` centre-crops to
-fill the screen (better for a single talking head). `burn_captions` and `show_hook` toggle the overlays.
+## Cost
 
-## How clip selection works
-
-`clipper/picker.py` sends the campaign brief and the timestamped transcript to Claude (`claude-opus-5-5`, structured
-output). The prompt puts rule compliance first, then looks for a hook in the first two seconds, a clip that stands
-alone, and a payoff before the cut. Picks are then snapped to word boundaries, clamped to the campaign's length limits,
-and de-overlapped. Server-side refusal fallback (`fallbacks: "default"`) is on, so a declined request is retried on
-another model automatically.
-
-Cost: one request per source video. A one-hour transcript is about 15k input tokens.
+Claude (`claude-opus-5-5`): one request to read the brief, one research request with up to 12 searches, and one
+planning request per video (keyframe images included). Typically well under a dollar per campaign. Transcription
+and rendering run on your computer for free.
 
 ## Tests
 
