@@ -1,13 +1,15 @@
 [project]
 name = "whop-clipper"
 version = "0.1.0"
-description = "Agent that turns long-form source videos into campaign-compliant short clips for Whop Content Rewards campaigns."
+description = "Agent that turns a clipping-campaign brief link into researched, rule-compliant short clips."
 requires-python = ">=3.11"
 dependencies = [
     "anthropic>=2.8,<3",
     "pydantic>=2.6",
     "faster-whisper>=1.0",
     "yt-dlp>=2025.1.1",
+    "playwright>=1.48",
+    "gdown>=5.2",
 ]
 
 [project.optional-dependencies]
